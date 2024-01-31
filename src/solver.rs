@@ -171,7 +171,7 @@ impl SudokuSolver {
         Ok(())
     }
 
-    pub fn solve(&mut self, sudoku: &mut Sudoku) -> Result<(), UnsolvableSudokuError> {
+    pub fn solve_in_place(&mut self, sudoku: &mut Sudoku) -> Result<(), UnsolvableSudokuError> {
         let mut is_solved = false;
         let mut iterations = 0;
 
@@ -203,6 +203,14 @@ impl SudokuSolver {
             iterations += 1;
         }
         Err(UnsolvableSudokuError)
+    }
+
+    pub fn solve(&mut self, sudoku: Sudoku) -> Result<Sudoku, UnsolvableSudokuError> {
+        let mut mutable_sudoku = sudoku.clone();
+        match self.solve_in_place(&mut mutable_sudoku) {
+            Ok(()) => Ok(mutable_sudoku),
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -290,7 +298,7 @@ mod tests {
 
         let mut sudoku = Sudoku::new(values.clone()).unwrap();
         let mut solver = SudokuSolver::new();
-        let _ = solver.solve(&mut sudoku);
+        let _ = solver.solve_in_place(&mut sudoku);
         assert!(sudoku.is_solved());
 
         // Hard one.
@@ -313,7 +321,7 @@ mod tests {
 
         let mut sudoku = Sudoku::new(values.clone()).unwrap();
         let mut solver = SudokuSolver::new();
-        let _ = solver.solve(&mut sudoku);
+        let _ = solver.solve_in_place(&mut sudoku);
         assert!(sudoku.is_solved());
     }
 }

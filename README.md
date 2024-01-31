@@ -27,10 +27,16 @@ fn main() {
     // Show unsolved sudoku.
     sudoku.print();
 
-    match solver.solve(&mut sudoku) {
+    // Solve and clone
+    match solver.solve(sudoku.clone()) {
+        Ok(solved) => solved.print(),
+        Err(_) => panic!("Failed to solve sudoku."),
+    };
+
+    // Solve in place
+    match solver.solve_in_place(&mut sudoku) {
         Ok(()) => sudoku.print(),
-        Err(_) => panic!("Failed to solve sudoku.")
+        Err(_) => panic!("Failed to solve sudoku."),
     };
 }
-
 ```
