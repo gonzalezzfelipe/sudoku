@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use crate::models::SudokuValue;
 
+#[derive(Debug)]
 pub struct Guess {
     pub index: usize,
     pub value: u8,
