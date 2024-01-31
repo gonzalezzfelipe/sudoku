@@ -19,15 +19,23 @@ fn main() {
     // Show unsolved sudoku.
     sudoku.print();
 
-    // Solve and clone
-    match solver.solve(sudoku.clone()) {
-        Ok(solved) => solved.print(),
+    // Return cloned solution.
+    match solver.solve(&sudoku) {
+        Ok(solved) => {
+            println!("Unsolved sudoku:");
+            sudoku.print();
+            println!("Solved sudoku:");
+            solved.print()
+        }
         Err(_) => panic!("Failed to solve sudoku."),
     };
 
     // Solve in place
     match solver.solve_in_place(&mut sudoku) {
-        Ok(()) => sudoku.print(),
+        Ok(()) => {
+            println!("Solved sudoku in place:");
+            sudoku.print();
+        }
         Err(_) => panic!("Failed to solve sudoku."),
     };
 }

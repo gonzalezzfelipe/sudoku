@@ -205,7 +205,7 @@ impl SudokuSolver {
         Err(UnsolvableSudokuError)
     }
 
-    pub fn solve(&mut self, sudoku: Sudoku) -> Result<Sudoku, UnsolvableSudokuError> {
+    pub fn solve(&mut self, sudoku: &Sudoku) -> Result<Sudoku, UnsolvableSudokuError> {
         let mut mutable_sudoku = sudoku.clone();
         match self.solve_in_place(&mut mutable_sudoku) {
             Ok(()) => Ok(mutable_sudoku),
