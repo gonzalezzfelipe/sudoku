@@ -106,33 +106,72 @@ pub fn assert_values(values: Vec<u8>) -> Result<(), SudokuCreationError> {
     Ok(())
 }
 
-fn print_separator(highlight: bool) -> () {
-    print!("{}", String::from("·").bold().yellow());
-    let mut i = 0;
-    while i < 9 {
-        if highlight {
-            print!("{}", String::from("---").bold().yellow());
+pub fn print_separator(row: usize) -> () {
+    // Start
+    if row == 0 {
+        print!("{}", String::from("╔").bold().yellow());
+    } else if row == 8 {
+        print!("{}", String::from("╚").bold().yellow());
+    } else if row % 3 == 0 {
+        print!("{}", String::from("╠").bold().yellow());
+    } else {
+        print!("{}", String::from("╟").bold().yellow());
+    }
+    for i in 0..9 {
+        // Fill
+        if row == 0 {
+            print!("{}", String::from("═══").bold().yellow());
+        } else if row == 8 {
+            print!("{}", String::from("═══").bold().yellow());
+        } else if row % 3 == 0 {
+            print!("{}", String::from("═══").bold().yellow());
         } else {
-            print!("---");
+            print!("{}", String::from("───").bold().yellow());
         }
-        if i % 3 == 2 || highlight {
-            print!("{}", String::from("·").bold().yellow());
-        } else {
-            print!("·");
+
+        // Separator
+        if i % 3 == 2 && i != 8 {
+            if row == 0 {
+                print!("{}", String::from("╦").bold().yellow());
+            } else if row == 8 {
+                print!("{}", String::from("╩").bold().yellow());
+            } else if row % 3 == 0 {
+                print!("{}", String::from("╬").bold().yellow());
+            } else {
+                print!("{}", String::from("╫").bold().yellow());
+            }
+        } else if i != 8 {
+            if row == 0 {
+                print!("{}", String::from("╤").bold().yellow());
+            } else if row == 8 {
+                print!("{}", String::from("╧").bold().yellow());
+            } else if row % 3 == 0 {
+                print!("{}", String::from("╪").bold().yellow());
+            } else {
+                print!("{}", String::from("┼").bold().yellow());
+            }
         }
-        i += 1;
+    }
+    if row == 0 {
+        print!("{}", String::from("╗").bold().yellow());
+    } else if row == 8 {
+        print!("{}", String::from("╝").bold().yellow());
+    } else if row % 3 == 0 {
+        print!("{}", String::from("╣").bold().yellow());
+    } else {
+        print!("{}", String::from("╢").bold().yellow());
     }
     print!("\n");
 }
 
 pub fn print_sudoku(sudoku: Sudoku) -> () {
-    print_separator(true);
+    print_separator(0);
     let mut i = 0;
 
     while i < 81 {
         let value = &sudoku.cells[i];
         if i % 9 == 0 {
-            print!("{}", String::from("|").yellow());
+            print!("{}", String::from("║").yellow());
         }
         if let Some(actual_value) = value.value {
             if value.is_original_value {
@@ -147,17 +186,22 @@ pub fn print_sudoku(sudoku: Sudoku) -> () {
             print!("   ");
         }
         if i % 3 == 2 {
-            print!("{}", String::from("|").yellow());
+            print!("{}", String::from("║").yellow());
         } else {
-            print!("|");
+            print!("{}", String::from("│").yellow());
         }
         if i % 9 == 8 {
             print!("\n");
-            let highlight = ((i + 1) / 9) % 3 == 0;
-            print_separator(highlight);
+            let row = (i / 9) + 1;
+            if row == 8 {
+                print_separator(7);
+            } else if row != 9 {
+                print_separator(row);
+            }
         }
         i += 1;
     }
+    print_separator(8);
 }
 
 #[cfg(test)]

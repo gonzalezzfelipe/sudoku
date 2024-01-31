@@ -6,3 +6,6 @@ pub enum SudokuCreationError {
     InvalidLength,
     InvalidValues,
 }
+
+#[derive(Debug)]
+pub struct NoMoreGuessesError;

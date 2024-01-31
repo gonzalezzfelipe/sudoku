@@ -1,10 +1,26 @@
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct SudokuCell {
     pub value: Option<u8>,
     pub possibilities: Option<HashSet<u8>>,
     pub is_original_value: bool,
+}
+
+impl Hash for SudokuCell {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
+        self.is_original_value.hash(state);
+
+        if self.possibilities != None {
+            let mut sorted_vec: Vec<u8> = self.possibilities.clone().unwrap().into_iter().collect();
+            sorted_vec.sort();
+            for value in sorted_vec {
+                value.hash(state);
+            }
+        }
+    }
 }
 
 /// Represents one of the 81 cell of a sudoku grid.

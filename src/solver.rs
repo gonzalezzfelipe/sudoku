@@ -1,18 +1,20 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::errors::UnsolvableSudokuError;
+use crate::errors::{NoMoreGuessesError, UnsolvableSudokuError};
 use crate::models::{Guess, Sudoku, SudokuCell};
 use crate::utils::GroupIndexes;
 
 #[derive(Debug)]
 pub struct SudokuSolver {
     pub guesses: VecDeque<Guess>,
+    pub used_guesses: HashSet<Guess>,
 }
 
 impl SudokuSolver {
     pub fn new() -> SudokuSolver {
         SudokuSolver {
             guesses: VecDeque::new(),
+            used_guesses: HashSet::new(),
         }
     }
 
@@ -98,7 +100,8 @@ impl SudokuSolver {
         }
     }
 
-    fn apply_guess(sudoku: &mut Sudoku, guess: &Guess) {
+    fn apply_guess(&mut self, sudoku: &mut Sudoku, guess: &Guess) {
+        self.used_guesses.insert(guess.clone());
         sudoku.cells = guess.state.clone();
         sudoku.cells[guess.index] = SudokuCell {
             value: Some(guess.value),
@@ -111,28 +114,40 @@ impl SudokuSolver {
         sudoku.cells = guess.state.clone();
     }
 
-    fn guess(&mut self, sudoku: &mut Sudoku) {
-        // Choose place to start guessing.
-        let mut index = 0;
-        while sudoku.cells[index].value != None {
-            index += 1;
+    fn produce_guess(&mut self, sudoku: &mut Sudoku) -> Option<Guess> {
+        for index in 0..81 {
+            if sudoku.cells[index].value == None {
+                let value_to_guess = sudoku.cells[index].clone();
+
+                // Copy possibilities, and extract one.
+                let mut guess_possibilities = value_to_guess.possibilities.unwrap().clone();
+                let value = guess_possibilities.iter().next().unwrap().clone();
+                guess_possibilities.remove(&value);
+                let guess = Guess {
+                    index,
+                    value,
+                    other_possibilities: guess_possibilities,
+                    state: sudoku.cells.clone(),
+                };
+
+                if !self.used_guesses.contains(&guess) {
+                    return Some(guess);
+                }
+            }
         }
-        let value_to_guess = sudoku.cells[index].clone();
+        None
+    }
 
-        // Copy possibilities, and extract one.
-        let mut guess_possibilities = value_to_guess.possibilities.unwrap().clone();
-        let value = guess_possibilities.iter().next().unwrap().clone();
-        guess_possibilities.remove(&value);
-        let guess = Guess {
-            index,
-            value,
-            other_possibilities: guess_possibilities,
-            state: sudoku.cells.clone(),
-        };
-
-        // Replace value in sudoku.cells, and retry.
-        SudokuSolver::apply_guess(sudoku, &guess);
-        self.guesses.push_back(guess);
+    fn guess(&mut self, sudoku: &mut Sudoku) -> Result<(), NoMoreGuessesError> {
+        // Choose place to start guessing.
+        match self.produce_guess(sudoku) {
+            Some(guess) => {
+                self.apply_guess(sudoku, &guess);
+                self.guesses.push_back(guess);
+                Ok(())
+            }
+            None => Err(NoMoreGuessesError),
+        }
     }
 
     fn run_routine(sudoku: &mut Sudoku) -> Result<bool, UnsolvableSudokuError> {
@@ -178,6 +193,7 @@ impl SudokuSolver {
     /// error, then go back an try a new guess. The function doesn't returns an empty result if
     /// successful, because the sudoku is mutated and solved.
     pub fn solve_in_place(&mut self, sudoku: &mut Sudoku) -> Result<(), UnsolvableSudokuError> {
+        self.used_guesses = HashSet::new();
         let mut is_solved = false;
         let mut iterations = 0;
 
@@ -186,19 +202,29 @@ impl SudokuSolver {
                 Ok(()) => {
                     is_solved = sudoku.is_solved();
                     if is_solved {
+                        self.used_guesses = HashSet::new();
                         return Ok(());
                     }
-                    self.guess(sudoku);
+                    match self.guess(sudoku) {
+                        Ok(()) => {}
+                        Err(_) => {
+                            self.used_guesses = HashSet::new();
+                            return Err(UnsolvableSudokuError);
+                        }
+                    };
                 }
                 Err(_) => match self.guesses.pop_back() {
                     Some(guess) => match guess.other_guess() {
                         Some(new_guess) => {
-                            SudokuSolver::apply_guess(sudoku, &new_guess);
+                            self.apply_guess(sudoku, &new_guess);
                             self.guesses.push_back(new_guess);
                         }
                         None => {
                             SudokuSolver::reverse_guess(sudoku, &guess);
-                            self.guess(sudoku);
+                            match self.guess(sudoku) {
+                                Ok(()) => {}
+                                Err(_) => return Err(UnsolvableSudokuError),
+                            };
                         }
                     },
                     None => {
@@ -222,6 +248,79 @@ impl SudokuSolver {
             Ok(()) => Ok(mutable_sudoku),
             Err(err) => Err(err),
         }
+    }
+
+    // Count amount of possible solutions to a sudoku.
+    //
+    // Doesn't work yet, that's why it is not public.
+    fn count_solutions(&mut self, sudoku: &Sudoku) -> usize {
+        // Clean hashset.
+        self.used_guesses = HashSet::new();
+
+        let mut sudoku = sudoku.clone();
+        let mut solutions: HashSet<Vec<SudokuCell>> = HashSet::new();
+
+        let mut finished: bool = false;
+
+        while !finished {
+            let mut must_find_new_guess = false;
+            match SudokuSolver::try_solve(&mut sudoku) {
+                Ok(()) => {
+                    if sudoku.is_solved() {
+                        solutions.insert(sudoku.cells.clone());
+                        must_find_new_guess = true;
+                    } else {
+                        match self.guess(&mut sudoku) {
+                            Ok(()) => {}
+                            Err(_) => finished = true,
+                        }
+                    }
+                }
+                Err(_) => must_find_new_guess = true,
+            }
+            if must_find_new_guess {
+                // Produce new guess, that we haven't seen before.
+                match self.guesses.pop_back() {
+                    Some(current_guess) => {
+                        // If current guess is not none, we want to try and derive another from it.
+                        let mut new_guess: Option<Guess> = None;
+                        while new_guess == None {
+                            match current_guess.other_guess() {
+                                Some(candidate) => {
+                                    if !self.used_guesses.contains(&candidate) {
+                                        new_guess = Some(candidate);
+                                    }
+                                }
+                                None => {
+                                    break;
+                                }
+                            }
+                        }
+
+                        match new_guess {
+                            // If we have a new one derived from the current, we want to apply it.
+                            Some(guess_to_apply) => {
+                                self.apply_guess(&mut sudoku, &guess_to_apply);
+                                self.guesses.push_back(guess_to_apply);
+                            }
+                            // Reverse current guess.
+                            None => {
+                                SudokuSolver::reverse_guess(&mut sudoku, &current_guess);
+                                match self.guess(&mut sudoku) {
+                                    Ok(()) => (),
+                                    Err(_) => finished = true, // Cant produce more guesses, we won.
+                                };
+                            }
+                        }
+                    }
+                    None => match self.guess(&mut sudoku) {
+                        Ok(()) => (),
+                        Err(_) => finished = true, // Cant produce more guesses, we won.
+                    },
+                };
+            }
+        }
+        solutions.len()
     }
 }
 
