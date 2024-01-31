@@ -130,7 +130,7 @@ pub fn print_sudoku(sudoku: Sudoku) -> () {
     let mut i = 0;
 
     while i < 81 {
-        let value = &sudoku.values[i];
+        let value = &sudoku.cells[i];
         if i % 9 == 0 {
             print!("{}", String::from("|").yellow());
         }

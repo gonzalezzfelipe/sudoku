@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::errors::UnsolvableSudokuError;
-use crate::models::{Guess, Sudoku, SudokuValue};
+use crate::models::{Guess, Sudoku, SudokuCell};
 use crate::utils::GroupIndexes;
 
 #[derive(Debug)]
@@ -22,23 +22,23 @@ impl SudokuSolver {
             let mut values_in_indexes: HashSet<u8> = HashSet::new();
 
             for &index in &indexes {
-                if let Some(value) = sudoku.values[index].value {
+                if let Some(value) = sudoku.cells[index].value {
                     values_in_indexes.insert(value);
                 }
             }
 
             for &index in &indexes {
-                if sudoku.values[index].value == None {
-                    let mut posibilities =
-                        sudoku.values[index].posibilities.as_ref().unwrap().clone();
+                if sudoku.cells[index].value == None {
+                    let mut possibilities =
+                        sudoku.cells[index].possibilities.as_ref().unwrap().clone();
                     for item in values_in_indexes.iter() {
-                        modified |= posibilities.remove(item);
+                        modified |= possibilities.remove(item);
                     }
 
-                    if posibilities.is_empty() {
+                    if possibilities.is_empty() {
                         return Err(UnsolvableSudokuError);
                     }
-                    sudoku.values[index].posibilities = Some(posibilities);
+                    sudoku.cells[index].possibilities = Some(possibilities);
                 }
             }
         }
@@ -50,13 +50,13 @@ impl SudokuSolver {
         for indexes in GroupIndexes::new() {
             let mut values_in_indexes_counter: HashMap<u8, i32> = HashMap::new();
 
-            // Populate counter of posibilities in the indexes. i.e: Count how many times
+            // Populate counter of possibilities in the indexes. i.e: Count how many times
             // a 7 appears in a row, or column, or block.
             for &index in &indexes {
-                if sudoku.values[index].value == None {
-                    if let Some(posibilities) = sudoku.values[index].posibilities.clone() {
-                        for &posibility in posibilities.iter() {
-                            let count = values_in_indexes_counter.entry(posibility).or_insert(0);
+                if sudoku.cells[index].value == None {
+                    if let Some(possibilities) = sudoku.cells[index].possibilities.clone() {
+                        for &possibility in possibilities.iter() {
+                            let count = values_in_indexes_counter.entry(possibility).or_insert(0);
                             *count += 1;
                         }
                     } else {
@@ -66,15 +66,15 @@ impl SudokuSolver {
             }
 
             for &index in &indexes {
-                if sudoku.values[index].value == None {
-                    // If there is a index with a posibility that only occurs once, then
+                if sudoku.cells[index].value == None {
+                    // If there is a index with a possibility that only occurs once, then
                     // we want to set that value. ie: You can only put a 7 in a specific
                     // place in a row.
-                    for &posibility in sudoku.values[index].posibilities.clone().unwrap().iter() {
-                        if let Some(&count) = &values_in_indexes_counter.get(&posibility) {
+                    for &possibility in sudoku.cells[index].possibilities.clone().unwrap().iter() {
+                        if let Some(&count) = &values_in_indexes_counter.get(&possibility) {
                             if count == 1 {
-                                sudoku.values[index].posibilities =
-                                    Some(HashSet::from([posibility]));
+                                sudoku.cells[index].possibilities =
+                                    Some(HashSet::from([possibility]));
                                 modified = true;
                             }
                         }
@@ -85,13 +85,13 @@ impl SudokuSolver {
         Ok(modified)
     }
 
-    fn clean_posibilities(sudoku: &mut Sudoku) {
+    fn clean_possibilities(sudoku: &mut Sudoku) {
         for index in 0..81 {
-            if sudoku.values[index].value == None {
-                let posibilities = sudoku.values[index].posibilities.as_ref().unwrap().clone();
-                if posibilities.len() == 1 {
-                    for item in posibilities.iter() {
-                        sudoku.values[index].set_value(*item)
+            if sudoku.cells[index].value == None {
+                let possibilities = sudoku.cells[index].possibilities.as_ref().unwrap().clone();
+                if possibilities.len() == 1 {
+                    for item in possibilities.iter() {
+                        sudoku.cells[index].set_value(*item)
                     }
                 }
             }
@@ -99,38 +99,38 @@ impl SudokuSolver {
     }
 
     fn apply_guess(sudoku: &mut Sudoku, guess: &Guess) {
-        sudoku.values = guess.state.clone();
-        sudoku.values[guess.index] = SudokuValue {
+        sudoku.cells = guess.state.clone();
+        sudoku.cells[guess.index] = SudokuCell {
             value: Some(guess.value),
-            posibilities: None,
+            possibilities: None,
             is_original_value: false,
         };
     }
 
     fn reverse_guess(sudoku: &mut Sudoku, guess: &Guess) {
-        sudoku.values = guess.state.clone();
+        sudoku.cells = guess.state.clone();
     }
 
     fn guess(&mut self, sudoku: &mut Sudoku) {
         // Choose place to start guessing.
         let mut index = 0;
-        while sudoku.values[index].value != None {
+        while sudoku.cells[index].value != None {
             index += 1;
         }
-        let value_to_guess = sudoku.values[index].clone();
+        let value_to_guess = sudoku.cells[index].clone();
 
-        // Copy posibilities, and extract one.
-        let mut guess_posibilities = value_to_guess.posibilities.unwrap().clone();
-        let value = guess_posibilities.iter().next().unwrap().clone();
-        guess_posibilities.remove(&value);
+        // Copy possibilities, and extract one.
+        let mut guess_possibilities = value_to_guess.possibilities.unwrap().clone();
+        let value = guess_possibilities.iter().next().unwrap().clone();
+        guess_possibilities.remove(&value);
         let guess = Guess {
             index,
             value,
-            other_posibilities: guess_posibilities,
-            state: sudoku.values.clone(),
+            other_possibilities: guess_possibilities,
+            state: sudoku.cells.clone(),
         };
 
-        // Replace value in sudoku values, and retry.
+        // Replace value in sudoku.cells, and retry.
         SudokuSolver::apply_guess(sudoku, &guess);
         self.guesses.push_back(guess);
     }
@@ -149,7 +149,7 @@ impl SudokuSolver {
                 Err(err) => return Err(err),
             };
 
-            SudokuSolver::clean_posibilities(sudoku);
+            SudokuSolver::clean_possibilities(sudoku);
         }
 
         Ok(modified)
@@ -171,6 +171,12 @@ impl SudokuSolver {
         Ok(())
     }
 
+    /// Solve sudoku in place.
+    ///
+    /// Will run the try_solve function until it comes to a stop, not being able to write a new
+    /// cell without guessing. After that, guess a new value, and continue. If that leads to an
+    /// error, then go back an try a new guess. The function doesn't returns an empty result if
+    /// successful, because the sudoku is mutated and solved.
     pub fn solve_in_place(&mut self, sudoku: &mut Sudoku) -> Result<(), UnsolvableSudokuError> {
         let mut is_solved = false;
         let mut iterations = 0;
@@ -205,6 +211,11 @@ impl SudokuSolver {
         Err(UnsolvableSudokuError)
     }
 
+    /// Return solved sudoku, if possible.
+    ///
+    /// Will run the try_solve function until it comes to a stop, not being able to write a new
+    /// cell without guessing. After that, guess a new value, and continue. If that leads to an
+    /// error, then go back an try a new guess.
     pub fn solve(&mut self, sudoku: &Sudoku) -> Result<Sudoku, UnsolvableSudokuError> {
         let mut mutable_sudoku = sudoku.clone();
         match self.solve_in_place(&mut mutable_sudoku) {
@@ -229,7 +240,7 @@ mod tests {
 
         let _ = SudokuSolver::filter(&mut sudoku);
 
-        assert_eq!(sudoku.values[8].posibilities, Some(HashSet::from([9])));
+        assert_eq!(sudoku.cells[8].possibilities, Some(HashSet::from([9])));
     }
 
     #[test]
@@ -243,8 +254,8 @@ mod tests {
         let mut sudoku = Sudoku::new(values).unwrap();
         let _ = SudokuSolver::filter(&mut sudoku);
 
-        assert_eq!(sudoku.values[7].posibilities, Some(HashSet::from([8, 9])));
-        assert_eq!(sudoku.values[8].posibilities, Some(HashSet::from([8, 9])));
+        assert_eq!(sudoku.cells[7].possibilities, Some(HashSet::from([8, 9])));
+        assert_eq!(sudoku.cells[8].possibilities, Some(HashSet::from([8, 9])));
     }
 
     #[test]
@@ -269,12 +280,12 @@ mod tests {
         let _ = SudokuSolver::filter(&mut sudoku);
 
         assert_eq!(
-            sudoku.values[64].posibilities,
+            sudoku.cells[64].possibilities,
             Some(HashSet::from([7, 4, 9]))
         );
 
         let _ = SudokuSolver::check(&mut sudoku);
-        assert_eq!(sudoku.values[64].posibilities, Some(HashSet::from([7])));
+        assert_eq!(sudoku.cells[64].possibilities, Some(HashSet::from([7])));
     }
 
     #[test]

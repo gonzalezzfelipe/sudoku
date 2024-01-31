@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
 use crate::errors::SudokuCreationError;
-use crate::models::SudokuValue;
+use crate::models::SudokuCell;
 use crate::utils::{assert_values, print_sudoku, GroupIndexes};
 
 #[derive(Debug, Clone)]
 pub struct Sudoku {
-    pub values: Vec<SudokuValue>,
+    pub cells: Vec<SudokuCell>,
 }
 
 impl From<&str> for Sudoku {
@@ -34,28 +34,30 @@ impl Sudoku {
             Err(err) => return Err(err),
         }
 
-        // Init posibilities
-        let mut parsed_values: Vec<SudokuValue> = vec![];
+        // Init possibilities
+        let mut cells: Vec<SudokuCell> = vec![];
 
         for &value in values.iter() {
-            parsed_values.push(SudokuValue::new(value));
+            cells.push(SudokuCell::new(value));
         }
-        Ok(Sudoku {
-            values: parsed_values,
-        })
+        Ok(Sudoku { cells })
     }
 
+    /// Pretty print sudoku on terminal.
+    ///
+    /// Try it, it looks nice.
     pub fn print(&self) {
         print_sudoku(self.clone());
     }
 
+    /// Check whether sudoku is solved.
     pub fn is_solved(&self) -> bool {
         let full_hash_set = HashSet::from([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
         for indexes in GroupIndexes::new() {
             let mut hash_set = HashSet::new();
             for index in indexes {
-                if let Some(value) = self.values[index].value {
+                if let Some(value) = self.cells[index].value {
                     hash_set.insert(value);
                 } else {
                     return false;

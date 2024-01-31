@@ -4,4 +4,4 @@ pub mod value;
 
 pub use crate::models::guess::Guess;
 pub use crate::models::sudoku::Sudoku;
-pub use crate::models::value::SudokuValue;
+pub use crate::models::value::SudokuCell;
