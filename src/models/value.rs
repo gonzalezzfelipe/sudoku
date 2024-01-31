@@ -30,40 +30,28 @@ impl SudokuValue {
         }
         self.posibilities = None;
     }
-
-    pub fn remove_posibility(&mut self, value: u8) -> bool {
-        if let Some(mut posibilities) = self.posibilities.take() {
-            let removed = posibilities.remove(&value);
-
-            if posibilities.is_empty() {
-                panic!("No more posibilities.")
-            }
-
-            if posibilities.len() == 1 {
-                for &item in posibilities.iter() {
-                    self.set_value(item);
-                    return true;
-                }
-            }
-
-            self.posibilities = Some(posibilities);
-            return removed;
-        }
-        false
-    }
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn name() {
-        unimplemented!();
-    }
     fn test_new_zero() {
         let value = SudokuValue::new(0);
-        assert!(value.value, None);
-        assert
+        assert_eq!(value.value, None);
+        assert_eq!(
+            value.posibilities,
+            Some(HashSet::from([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        );
+        assert!(!value.is_original_value);
+    }
+
+    #[test]
+    fn test_new_non_zero() {
+        let value = SudokuValue::new(1);
+        assert_eq!(value.value, Some(1));
+        assert_eq!(value.posibilities, None);
+        assert!(value.is_original_value);
     }
 }

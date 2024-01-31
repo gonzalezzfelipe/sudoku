@@ -9,6 +9,24 @@ pub struct Sudoku {
     pub values: Vec<SudokuValue>,
 }
 
+impl From<&str> for Sudoku {
+    fn from(s: &str) -> Sudoku {
+        let v: Vec<&str> = s.split(",").collect();
+
+        assert!(v.len() == 81);
+
+        let values: Vec<u8> = v
+            .into_iter()
+            .map(|x| match x.trim().parse::<u8>() {
+                Ok(parsed) => parsed,
+                Err(_) => 0,
+            })
+            .collect();
+
+        Sudoku::new(values).expect("Invalid")
+    }
+}
+
 impl Sudoku {
     pub fn new(values: Vec<u8>) -> Result<Sudoku, SudokuCreationError> {
         match assert_values(values.clone()) {
@@ -131,7 +149,44 @@ impl Sudoku {
         }
     }
 
-    pub fn run_routine(&mut self) -> Result<bool, UnsolvableSudokuError> {
+    fn apply_guess(&mut self, guess: &Guess) {
+        self.values = guess.state.clone();
+        self.values[guess.index] = SudokuValue {
+            value: Some(guess.value),
+            posibilities: None,
+            is_original_value: false,
+        };
+    }
+
+    fn reverse_guess(&mut self, guess: &Guess) {
+        self.values = guess.state.clone();
+    }
+
+    fn guess(&mut self, guesses: &mut VecDeque<Guess>) {
+        // Choose place to start guessing.
+        let mut index = 0;
+        while self.values[index].value != None {
+            index += 1;
+        }
+        let value_to_guess = self.values[index].clone();
+
+        // Copy posibilities, and extract one.
+        let mut guess_posibilities = value_to_guess.posibilities.unwrap().clone();
+        let value = guess_posibilities.iter().next().unwrap().clone();
+        guess_posibilities.remove(&value);
+        let guess = Guess {
+            index,
+            value,
+            other_posibilities: guess_posibilities,
+            state: self.values.clone(),
+        };
+
+        // Replace value in sudoku values, and retry.
+        self.apply_guess(&guess);
+        guesses.push_back(guess);
+    }
+
+    fn run_routine(&mut self) -> Result<bool, UnsolvableSudokuError> {
         let mut modified = true;
 
         while modified {
@@ -151,42 +206,11 @@ impl Sudoku {
         Ok(modified)
     }
 
-    pub fn apply_guess(&mut self, guess: &Guess) {
-        self.values = guess.state.clone();
-        self.values[guess.index] = SudokuValue {
-            value: Some(guess.value),
-            posibilities: None,
-            is_original_value: false,
-        };
-    }
-
-    pub fn reverse_guess(&mut self, guess: &Guess) {
-        self.values = guess.state.clone();
-    }
-
-    pub fn guess(&mut self, guesses: &mut VecDeque<Guess>) {
-        // Choose place to start guessing. For now, the first non defined place
-        let mut index = 0;
-        while self.values[index].value != None {
-            index += 1;
-        }
-        let value_to_guess = self.values[index].clone();
-
-        // Copy posibilities, and extract one.
-        let mut guess_posibilities = value_to_guess.posibilities.unwrap().clone();
-        let value = guess_posibilities.iter().next().unwrap().clone();
-        guess_posibilities.remove(&value);
-        let guess = Guess {
-            index,
-            value,
-            other_posibilities: guess_posibilities,
-            state: self.values.clone(),
-        };
-        // Replace value in sudoku values, and retry.
-        self.apply_guess(&guess);
-        guesses.push_back(guess);
-    }
-
+    /// Try and solve the sudoku without guessing.
+    ///
+    /// Generally speaking, there are hard and easy sudokus. Easy sudokus can be solved
+    /// without guessing. Hard sudokus are the ones that cannot be solved without guessing
+    /// and checking that the sudoku is solvable.
     pub fn try_solve(&mut self) -> Result<(), UnsolvableSudokuError> {
         let mut modified = true;
         while modified {
@@ -231,24 +255,6 @@ impl Sudoku {
             iterations += 1;
         }
         Err(UnsolvableSudokuError)
-    }
-}
-
-impl From<&str> for Sudoku {
-    fn from(s: &str) -> Sudoku {
-        let v: Vec<&str> = s.split(",").collect();
-
-        assert!(v.len() == 81);
-
-        let values: Vec<u8> = v
-            .into_iter()
-            .map(|x| match x.trim().parse::<u8>() {
-                Ok(parsed) => parsed,
-                Err(_) => 0,
-            })
-            .collect();
-
-        Sudoku::new(values).expect("Invalid")
     }
 }
 
