@@ -48,3 +48,23 @@ fn main() {
     };
 }
 ```
+
+## Server example.
+
+```sh
+cargo run --bin server
+```
+
+```sh
+curl -s -H 'content-type: application/json' -X POST http://localhost:8000/ \
+    -d '{"values": [
+        0, 3, 0, 5, 0, 0, 0, 0, 0,
+        1, 0, 0, 8, 0, 2, 0, 9, 0,
+        0, 0, 9, 0, 0, 0, 4, 0, 0,
+        8, 0, 0, 9, 0, 1, 0, 4, 0,
+        0, 0, 0, 0, 7, 0, 0, 0, 0,
+        0, 6, 0, 0, 0, 0, 0, 0, 3,
+        7, 0, 0, 0, 4, 0, 0, 0, 0,
+        0, 8, 0, 2, 0, 7, 6, 0, 0,
+        0, 0, 0, 0, 5, 0, 0, 2, 0]}' | jq -rc '.values' | ./target/debug/main
+```

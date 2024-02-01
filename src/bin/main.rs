@@ -1,41 +1,13 @@
-use sudoku::{Sudoku, SudokuSolver};
+use std::io;
 
-fn main() {
-    #[rustfmt::skip]
-    let values: Vec<u8> = vec![
-        0, 3, 0, 5, 0, 0, 0, 0, 0,
-        1, 0, 0, 8, 0, 2, 0, 9, 0,
-        0, 0, 9, 0, 0, 0, 4, 0, 0,
-        8, 0, 0, 9, 0, 1, 0, 4, 0,
-        0, 0, 0, 0, 7, 0, 0, 0, 0,
-        0, 6, 0, 0, 0, 0, 0, 0, 3,
-        7, 0, 0, 0, 4, 0, 0, 0, 0,
-        0, 8, 0, 2, 0, 7, 6, 0, 0,
-        0, 0, 0, 0, 5, 0, 0, 2, 0,
-    ];
-    let mut sudoku = Sudoku::new(values).expect("Invalid sudoku");
-    let mut solver = SudokuSolver::new();
+use sudoku::Sudoku;
 
-    // Show unsolved sudoku.
+fn main() -> io::Result<()> {
+    let mut buffer = String::new();
+    io::stdin().read_line(&mut buffer)?;
+
+    // Expects [1, 2, 3, 4 ... ] with a new line at the end. Hence the slice limits
+    let sudoku: Sudoku = Sudoku::from(&buffer[1..(buffer.len() - 2)]);
     sudoku.print();
-
-    // Return cloned solution.
-    match solver.solve(&sudoku) {
-        Ok(solved) => {
-            println!("Unsolved sudoku:");
-            sudoku.print();
-            println!("Solved sudoku:");
-            solved.print()
-        }
-        Err(_) => panic!("Failed to solve sudoku."),
-    };
-
-    // Solve in place
-    match solver.solve_in_place(&mut sudoku) {
-        Ok(()) => {
-            println!("Solved sudoku in place:");
-            sudoku.print();
-        }
-        Err(_) => panic!("Failed to solve sudoku."),
-    };
+    Ok(())
 }

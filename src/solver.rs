@@ -249,79 +249,6 @@ impl SudokuSolver {
             Err(err) => Err(err),
         }
     }
-
-    // Count amount of possible solutions to a sudoku.
-    //
-    // Doesn't work yet, that's why it is not public.
-    fn count_solutions(&mut self, sudoku: &Sudoku) -> usize {
-        // Clean hashset.
-        self.used_guesses = HashSet::new();
-
-        let mut sudoku = sudoku.clone();
-        let mut solutions: HashSet<Vec<SudokuCell>> = HashSet::new();
-
-        let mut finished: bool = false;
-
-        while !finished {
-            let mut must_find_new_guess = false;
-            match SudokuSolver::try_solve(&mut sudoku) {
-                Ok(()) => {
-                    if sudoku.is_solved() {
-                        solutions.insert(sudoku.cells.clone());
-                        must_find_new_guess = true;
-                    } else {
-                        match self.guess(&mut sudoku) {
-                            Ok(()) => {}
-                            Err(_) => finished = true,
-                        }
-                    }
-                }
-                Err(_) => must_find_new_guess = true,
-            }
-            if must_find_new_guess {
-                // Produce new guess, that we haven't seen before.
-                match self.guesses.pop_back() {
-                    Some(current_guess) => {
-                        // If current guess is not none, we want to try and derive another from it.
-                        let mut new_guess: Option<Guess> = None;
-                        while new_guess == None {
-                            match current_guess.other_guess() {
-                                Some(candidate) => {
-                                    if !self.used_guesses.contains(&candidate) {
-                                        new_guess = Some(candidate);
-                                    }
-                                }
-                                None => {
-                                    break;
-                                }
-                            }
-                        }
-
-                        match new_guess {
-                            // If we have a new one derived from the current, we want to apply it.
-                            Some(guess_to_apply) => {
-                                self.apply_guess(&mut sudoku, &guess_to_apply);
-                                self.guesses.push_back(guess_to_apply);
-                            }
-                            // Reverse current guess.
-                            None => {
-                                SudokuSolver::reverse_guess(&mut sudoku, &current_guess);
-                                match self.guess(&mut sudoku) {
-                                    Ok(()) => (),
-                                    Err(_) => finished = true, // Cant produce more guesses, we won.
-                                };
-                            }
-                        }
-                    }
-                    None => match self.guess(&mut sudoku) {
-                        Ok(()) => (),
-                        Err(_) => finished = true, // Cant produce more guesses, we won.
-                    },
-                };
-            }
-        }
-        solutions.len()
-    }
 }
 
 #[cfg(test)]
@@ -412,17 +339,11 @@ mod tests {
         assert!(sudoku.is_solved());
 
         // Hard one.
-        #[rustfmt::skip]
+        // #[rustfmt::skip]
         let values: Vec<u8> = vec![
-            0, 3, 0, 5, 0, 0, 0, 0, 0,
-            1, 0, 0, 8, 0, 2, 0, 9, 0,
-            0, 0, 9, 0, 0, 0, 4, 0, 0,
-            8, 0, 0, 9, 0, 1, 0, 4, 0,
-            0, 0, 0, 0, 7, 0, 0, 0, 0,
-            0, 6, 0, 0, 0, 0, 0, 0, 3,
-            7, 0, 0, 0, 4, 0, 0, 0, 0,
-            0, 8, 0, 2, 0, 7, 6, 0, 0,
-            0, 0, 0, 0, 5, 0, 0, 2, 0,
+            0, 3, 0, 5, 0, 0, 0, 0, 0, 1, 0, 0, 8, 0, 2, 0, 9, 0, 0, 0, 9, 0, 0, 0, 4, 0, 0, 8, 0,
+            0, 9, 0, 1, 0, 4, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0,
+            4, 0, 0, 0, 0, 0, 8, 0, 2, 0, 7, 6, 0, 0, 0, 0, 0, 0, 5, 0, 0, 2, 0,
         ];
 
         let mut sudoku = Sudoku::new(values.clone()).unwrap();
